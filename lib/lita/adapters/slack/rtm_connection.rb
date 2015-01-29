@@ -15,15 +15,17 @@ module Lita
 
         class << self
           def build(robot, token)
-            new(robot, token, API.new(token).rtm_start)
+            new(robot, token, API.new(token))
           end
         end
 
-        def initialize(robot, token, team_data)
+        def initialize(robot, token, api)
           @robot = robot
-          @im_mapping = IMMapping.new(API.new(token), team_data.ims)
-          @robot_id = team_data.self.id
-          UserCreator.create_users(team_data.users, robot, robot_id)
+          @team_data = api.rtm_start
+          @api = api
+          @im_mapping = IMMapping.new(api, @team_data.ims)
+          @robot_id = @team_data.self.id
+          UserCreator.create_users(@team_data.users, robot, robot_id)
         end
 
         def im_for(user_id)
@@ -33,7 +35,7 @@ module Lita
         def run(queue = nil)
           EM.run do
             log.debug("Connecting to the Slack Real Time Messaging API.")
-            @websocket = Faye::WebSocket::Client.new(team_data.websocket_url, nil, ping: 10)
+            @websocket = Faye::WebSocket::Client.new(@api.rtm_start.websocket_url, nil, ping: 10)
 
             websocket.on(:open) { log.debug("Connected to the Slack Real Time Messaging API.") }
             websocket.on(:message) { |event| receive_message(event) }
